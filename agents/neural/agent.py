@@ -39,11 +39,11 @@ class NeuralAgent(Agent):
             inp = torch.tensor(self.obs).float().unsqueeze(0).to(self.device)
             output = self.model(inp)
 
-        move_policy = get_policy(output.move_policy)
-        sap_policy = get_policy(output.sap_policy)
+        move_policy = unload(output.move_policy.squeeze(0))
+        sap_policy = unload(output.sap_policy.squeeze(0))
 
-        assert move_policy.shape == (24, 24), move_policy.shape
-        assert sap_policy.shape == (24, 24), sap_policy.shape
+        assert move_policy.shape == (5, 24, 24), move_policy.shape
+        assert sap_policy.shape == (2, 24, 24), sap_policy.shape
 
         self.move_policy_mask = np.zeros((5, 24, 24), 'int8')
         self.sap_policy_mask = np.zeros((2, 24, 24), 'int8')
@@ -51,9 +51,11 @@ class NeuralAgent(Agent):
         # movement actions
         for unit_id, (unit_pos, unmask) in enumerate(zip(unit_positions, unit_mask)):
             if unmask:
-                m = move_policy[unit_pos[0], unit_pos[1]]
                 if np.random.uniform() < self.epsilon:
                     m = np.random.choice(5)
+                else:
+                    m = move_policy[:, unit_pos[0], unit_pos[1]]
+                    m = np.random.choice(5, p=m/m.sum())
                 actions[unit_id][0] = m
                 self.move_policy_mask[m, unit_pos[0], unit_pos[1]] = 1
 
@@ -63,14 +65,21 @@ class NeuralAgent(Agent):
             target_range = np.arange(-sap_range + 1, sap_range)
             for unit_id, (unit_pos, unmask) in enumerate(zip(unit_positions, unit_mask)):
                 if unmask:
+                    best_pos, best_dx, best_score = [0, 0], [0, 0], 0
                     for dx in target_range:
                         for dy in target_range:
                             target_pos = unit_pos[0] + dx, unit_pos[1] + dy
 
                             if is_valid_pos(target_pos) and (get_distance(target_pos, unit_pos) <= sap_range):
-                                s = sap_policy[target_pos[0], target_pos[1]]
-                                if s == 1:
-                                    actions[unit_id][1:] = [dx, dy]
-                                    self.sap_policy_mask[s, target_pos[0], target_pos[1]] = 1
+                                s = sap_policy[1, target_pos[0], target_pos[1]]
+                                if s > best_score:
+                                    best_dx = [dx, dy]
+                                    best_score = s
+                                    best_pos = target_pos
+                                self.sap_policy_mask[0, target_pos[0], target_pos[1]] = 1
+
+                    actions[unit_id][1:] = best_dx
+
+                    self.sap_policy_mask[1, best_pos[0], best_pos[1]] = 1
 
         return actions

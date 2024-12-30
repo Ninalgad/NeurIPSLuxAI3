@@ -26,6 +26,22 @@ def finish_trajectory(trajectory):
     return trajectory
 
 
+def create_action_maps(actions, player_obs, team_id):
+    move_policy_mask = np.zeros((5, 24, 24), 'int8')
+    sap_policy_mask = np.zeros((2, 24, 24), 'int8')
+
+    unit_mask = np.array(player_obs["units_mask"][team_id])  # shape (max_units, )
+    unit_positions = np.array(player_obs["units"]["position"][team_id])  # shape (max_units, 2)
+
+    for action, unmask, pos in zip(actions, unit_mask, unit_positions):
+        move, dx, dy = action
+        x, y = pos
+        move_policy_mask[move, x, y] = 1
+
+        if (dx == 0) and (dy == 0):
+            sap_policy_mask[0, x]
+
+
 def run_selfplay(player_0, player_1, seed=0, replay_save_dir="",
                  display_episode=False):
 
