@@ -13,16 +13,13 @@ class ReplayBuffer(object):
         self.buffer = None
         self.obs_dim = obs_dim
 
-        self._size = 0
-
     def get_size(self):
-        return self._size
+        return len(self.buffer['value'])
 
     def save_game(self, game: dict):
         for states in game.values():
             for s in states:
                 self.append_state(s)
-        self._size = len(self.buffer['value'])
 
     def append_state(self, s: State):
         assert s.obs.shape[0] == self.obs_dim, f"Expected obs to have dim {self.obs_dim} got {s.obs.shape[0]}"
@@ -52,7 +49,7 @@ class ReplayBuffer(object):
         return batch
 
     def sample(self) -> dict:
-        i = np.random.choice(self._size)
+        i = np.random.choice(self.get_size())
         item = {k: np.expand_dims(v[i], 0) for (k, v) in self.buffer.items()}
         return item
 

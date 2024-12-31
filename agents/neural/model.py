@@ -122,8 +122,14 @@ class UNetModel(nn.Module):
 
         self.relu = nn.ReLU(inplace=True)
 
+        self.conv0 = nn.Sequential(
+            nn.Conv2d(in_channels, 2*num_filters, 1),
+            self.relu,
+            nn.Conv2d(2*num_filters, num_filters, 1),
+        )
+
         self.conv1 = nn.Sequential(
-           EncoderBlock(in_channels, 2*num_filters, num_filters),
+           EncoderBlock(num_filters, 2*num_filters, num_filters),
            EncoderBlock(num_filters, 2*num_filters, 2*num_filters)
         )
 
@@ -153,7 +159,8 @@ class UNetModel(nn.Module):
         self.value = mlp(8*num_filters, 1, num_filters)
 
     def forward(self, x: torch.Tensor) -> NetworkOutput:
-        conv1 = self.conv1(x)
+        conv0 = self.conv0(x)
+        conv1 = self.conv1(conv0)
         conv2 = self.conv2(self.pool(conv1))
         conv3 = self.conv3(self.pool(conv2))
 

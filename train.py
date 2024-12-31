@@ -80,7 +80,7 @@ class A2CLearner(Learner):
         torch.save(state, filepath)
 
     def import_(self, filepath):
-        checkpoint = torch.load(filepath, weights_only=True)
+        checkpoint = torch.load(filepath, self.device, weights_only=True)
         self.model.load_state_dict(checkpoint['model_state_dict'])
         self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         self.steps = checkpoint['step']
