@@ -22,6 +22,8 @@ class ObservationalAgent(Agent):
         for pos, unmask in zip(obs["relic_nodes"], obs["relic_nodes_mask"]):
             if unmask:
                 self.discovered_relic_map[pos[0], pos[1]] = 1
+                pos = transpose(pos)
+                self.discovered_relic_map[pos[0], pos[1]] = 1
 
         self.obs, self.hist = create_obs_frame(obs, self.discovered_relic_map, self.hist,
                                                self.team_id, self.opp_team_id)
@@ -73,7 +75,7 @@ class ObservationalAgent(Agent):
 
                     if s == 1:
                         actions[unit_id][1:] = best_dx
-                        print('sap', unit_id)
+                        print('sap', unit_id, best_dx)
 
                     self.sap_policy_mask[s, best_pos[0], best_pos[1]] = 1
 

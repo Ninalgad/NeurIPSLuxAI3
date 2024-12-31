@@ -9,6 +9,14 @@ class NetworkOutput(typing.NamedTuple):
     sap_policy: torch.tensor
 
 
+def transpose(pos):
+    return 23 - pos[1], 23 - pos[0]
+
+
+def transpose_mat(a):
+    return a.copy()[::-1, ::-1].T
+
+
 def unload(x: torch.tensor):
     return x.detach().cpu().numpy()
 
@@ -27,8 +35,10 @@ def create_obs_frame(player_obs, relic_map, hist_frames, player_id, opp_id):
     # map features
     map_frame = np.zeros((2, 24, 24), 'int8')
     for i, k in enumerate(['energy', 'tile_type']):
-        map_frame[i] = player_obs['map_features'][k]
-    map_frame += 1  # add 1 to make compression easier
+        m = player_obs['map_features'][k]
+        m = np.maximum(m, transpose_mat(m))  # map features a symmetric
+        map_frame[i] = m
+    map_frame += 1  # add 1 to make compression easier, since most (hidden) tiles are -1
 
     # unit energy feature (position is implied)
     unit_frame = np.zeros((1, 24, 24), 'int32')
