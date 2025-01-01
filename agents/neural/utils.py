@@ -36,7 +36,7 @@ def create_obs_frame(player_obs, relic_map, hist_frames, player_id, opp_id):
     map_frame = np.zeros((2, 24, 24), 'int8')
     for i, k in enumerate(['energy', 'tile_type']):
         m = player_obs['map_features'][k]
-        m = np.maximum(m, transpose_mat(m))  # map features a symmetric
+        # m = np.maximum(m, transpose_mat(m))  # map features a symmetric
         map_frame[i] = m
     map_frame += 1  # add 1 to make compression easier, since most (hidden) tiles are -1
 
@@ -66,3 +66,25 @@ def create_obs_frame(player_obs, relic_map, hist_frames, player_id, opp_id):
 
     frames = np.concatenate([relic_frame, v_frames, hist_frames], axis=0, dtype='int32')
     return frames, hist_frames
+
+
+def get_angles(pos, i, d_model):
+    angle_rates = 1 / np.power(10000, (2 * (i // 2)) / np.float32(d_model))
+    return pos * angle_rates
+
+
+def positional_encoding(position, d_model):
+    d_model += 1
+    angle_rads = get_angles(np.arange(position)[:, np.newaxis],
+                            np.arange(d_model)[np.newaxis, :],
+                            d_model)
+
+    # apply sin to even indices in the array; 2i
+    angle_rads[:, 0::2] = np.sin(angle_rads[:, 0::2])
+
+    # apply cos to odd indices in the array; 2i+1
+    angle_rads[:, 1::2] = np.cos(angle_rads[:, 1::2])
+
+    pos_encoding = angle_rads[np.newaxis, np.newaxis, :, 1:]
+
+    return pos_encoding.astype('float32')

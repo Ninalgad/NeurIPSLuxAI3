@@ -14,7 +14,7 @@ class ReplayBuffer(object):
         self.obs_dim = obs_dim
 
     def get_size(self):
-        return len(self.buffer['value'])
+        return 0 if (self.buffer is None) else len(self.buffer['value'])
 
     def save_game(self, game: dict):
         for states in game.values():

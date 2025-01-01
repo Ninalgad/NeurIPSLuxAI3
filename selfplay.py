@@ -9,20 +9,39 @@ def discounted_cumulative_sums(x, discount):
     return scipy.signal.lfilter([1], [1, float(-discount)], x[::-1], axis=0)[::-1]
 
 
+def player_values(trajectory, player_id, opp_id):
+    r = np.array([x.reward for x in trajectory[player_id]])
+    o = np.array([x.reward for x in trajectory[opp_id]])
+    p = np.array([x.points for x in trajectory[player_id]])
+
+    r = r[1:] - r[:-1]
+    o = o[1:] - o[:-1]
+    p = p[1:] - p[:-1]
+
+    r = r - o
+    r *= 5
+    p = np.clip(p, 0, 1)
+
+    r = discounted_cumulative_sums(r, 0.9998)
+    p = discounted_cumulative_sums(p, 0.7777)
+
+    v = r + p
+
+    # v = v * ((1 + np.arange(1, len(r) + 1))/len(r)) ** 0.99 # weigh team wins value at the end more
+    v /= 9
+    v = np.pad(v, (1, 0))
+
+    return v
+
+
 def finish_trajectory(trajectory):
-    r0 = np.array([x.reward for x in trajectory['player_0']])
-    r1 = np.array([x.reward for x in trajectory['player_1']])
+    values0 = player_values(trajectory, 'player_0', 'player_1')
+    values1 = player_values(trajectory, 'player_1', 'player_0')
 
-    r = r1 - r0
-    r = r * np.arange(1, len(r) + 1)
-    r = r[:-1] - r[1:]
-    r = discounted_cumulative_sums(r, 0.99).astype('float32')
-    r = r / np.abs(r).max()
-
-    trajectory['player_0'] = [s._replace(value=-v)
-                              for v, s in zip(r, trajectory['player_0'])]
+    trajectory['player_0'] = [s._replace(value=v)
+                              for v, s in zip(values0, trajectory['player_0'])]
     trajectory['player_1'] = [s._replace(value=v)
-                              for v, s in zip(r, trajectory['player_1'])]
+                              for v, s in zip(values1, trajectory['player_1'])]
     return trajectory
 
 
@@ -68,9 +87,14 @@ def run_selfplay(player_0, player_1, seed=0, replay_save_dir="",
 
         obs, reward, terminated, truncated, info = env.step(actions)
 
-        for agent in [player_0, player_1]:
-            traj[agent.player].append(State(0, reward[agent.player].item(), agent.obs,
-                                            agent.move_policy_mask, agent.sap_policy_mask))
+        for i, agent in enumerate([player_0, player_1]):
+            s = State(0,
+                      obs['player_0']["team_points"][i],
+                      reward[agent.player].item(),
+                      agent.obs,
+                      agent.move_policy_mask,
+                      agent.sap_policy_mask)
+            traj[agent.player].append(s)
 
         dones = {k: terminated[k] | truncated[k] for k in terminated}
         if dones["player_0"] or dones["player_1"]:

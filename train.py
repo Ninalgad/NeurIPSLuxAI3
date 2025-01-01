@@ -22,7 +22,7 @@ def actor_loss(policy, advantage, action):
 
 
 def critic_loss(prediction, target):
-    return torch.nn.MSELoss()(prediction, target)
+    return torch.nn.L1Loss()(prediction, target)
 
 
 class A2CLearner(Learner):

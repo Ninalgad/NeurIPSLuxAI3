@@ -59,6 +59,7 @@ def evaluate_agents(agent_1_cls, agent_2_cls, seed=42, games_to_play=3, replay_s
 
 class State(typing.NamedTuple):
     value: float
+    points: float
     reward: float
     obs: np.array
     move_action: np.array

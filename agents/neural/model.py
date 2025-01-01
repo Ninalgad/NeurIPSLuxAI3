@@ -2,7 +2,7 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
-from agents.neural.utils import NetworkOutput
+from agents.neural.utils import NetworkOutput, positional_encoding
 
 
 def conv3x3(in_: int, out: int) -> nn.Module:
@@ -118,6 +118,8 @@ class UNetModel(nn.Module):
 
         super().__init__()
 
+        self.pe = torch.tensor(positional_encoding(24, 24)).float()  # (1, 1, 24, 24))
+
         self.pool = nn.MaxPool2d(2, 2)
 
         self.relu = nn.ReLU(inplace=True)
@@ -159,7 +161,7 @@ class UNetModel(nn.Module):
         self.value = mlp(8*num_filters, 1, num_filters)
 
     def forward(self, x: torch.Tensor) -> NetworkOutput:
-        conv0 = self.conv0(x)
+        conv0 = self.conv0(x) + self.pe
         conv1 = self.conv1(conv0)
         conv2 = self.conv2(self.pool(conv1))
         conv3 = self.conv3(self.pool(conv2))
