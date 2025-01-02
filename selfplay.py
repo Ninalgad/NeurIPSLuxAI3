@@ -10,26 +10,14 @@ def discounted_cumulative_sums(x, discount):
 
 
 def player_values(trajectory, player_id, opp_id):
-    r = np.array([x.reward for x in trajectory[player_id]])
-    o = np.array([x.reward for x in trajectory[opp_id]])
-    p = np.array([x.points for x in trajectory[player_id]])
+    e = np.array([x.energy for x in trajectory[player_id]], 'float32')
+    p = np.array([x.points for x in trajectory[player_id]], 'float32')
+    d = np.array([x.reward - y.reward for x, y in zip(trajectory[player_id], trajectory[opp_id])], 'float32')
 
-    r = r[1:] - r[:-1]
-    o = o[1:] - o[:-1]
-    p = p[1:] - p[:-1]
+    p = discounted_cumulative_sums(p / 500, 0.7777)
+    e = np.maximum(np.pad(e[1:] - e[:-1], (1, 0)), 0)
 
-    r = r - o
-    r *= 5
-    p = np.clip(p, 0, 1)
-
-    r = discounted_cumulative_sums(r, 0.9998)
-    p = discounted_cumulative_sums(p, 0.7777)
-
-    v = r + p
-
-    # v = v * ((1 + np.arange(1, len(r) + 1))/len(r)) ** 0.99 # weigh team wins value at the end more
-    v /= 9
-    v = np.pad(v, (1, 0))
+    v = p + (d / 5) + (1e-3 * e)
 
     return v
 

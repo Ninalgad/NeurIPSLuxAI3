@@ -4,21 +4,27 @@ from replay import ReplayBuffer
 
 
 class Learner(metaclass=abc.ABCMeta):
-    """An learner to update the network weights based."""
+    """A learner to update the network weights based."""
 
     @abc.abstractmethod
-    def learn(self, replay_buffer: ReplayBuffer):
+    def learn(self, replay_buffer: ReplayBuffer) -> float:
         """Single training step of the learner."""
 
     @abc.abstractmethod
     def export(self, filepath: str, meta: dict):
         """Exports the learner states."""
 
+    @abc.abstractmethod
+    def import_(self, filepath: str) -> dict:
+        """Import the learner states."""
+
 
 def actor_loss(policy, advantage, action):
     a = advantage[:, :, None, None, None] * action
     log_policy = torch.log(policy + 1e-5)
-    return - (log_policy * a).mean()
+    loss_ = - (log_policy * a)
+
+    return loss_.sum() / (action.sum() + 1e-5)
 
 
 def critic_loss(prediction, target):

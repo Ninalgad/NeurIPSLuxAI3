@@ -18,24 +18,32 @@ class ReplayBuffer(object):
 
     def save_game(self, game: dict):
         for states in game.values():
-            for s in states:
-                self.append_state(s)
+            self.append_states(states)
 
-    def append_state(self, s: State):
-        assert s.obs.shape[0] == self.obs_dim, f"Expected obs to have dim {self.obs_dim} got {s.obs.shape[0]}"
-        s = {
-            'value': np.array(s.value, 'float32'),
-            'obs': s.obs,
-            'move_action': s.move_action,
-            'sap_action': s.sap_action
+    def append_states(self, states: list[State]):
+        buffer_update = {
+            'value': [],
+            'obs': [],
+            'move_action': [],
+            'sap_action': []
             }
-        s = {k: np.expand_dims(v, 0) for (k, v) in s.items()}
+        for s in states:
+            buffer_update['value'].append(s.value)
+            buffer_update['obs'].append(s.obs)
+            buffer_update['move_action'].append(s.move_action)
+            buffer_update['sap_action'].append(s.sap_action)
 
+        buffer_update['value'] = np.array(buffer_update['value'], "float32")
+        for k in ['obs', 'move_action', 'sap_action']:
+            buffer_update[k] = np.array(buffer_update[k], "int8")
+
+        msg = f"Expected obs to have dim {(-1, self.obs_dim, 24, 24)} got {buffer_update['obs'].shape}"
+        assert buffer_update['obs'].shape[1] == self.obs_dim, msg
         if self.buffer is None:
-            self.buffer = s
+            self.buffer = buffer_update
         else:
             for (k, v) in self.buffer.items():
-                self.buffer[k] = np.append(v, s[k], axis=0)[-self.window_size:]
+                self.buffer[k] = np.append(v, buffer_update[k], axis=0)[-self.window_size:]
 
     def sample_batch(self) -> dict:
         batch = None
@@ -57,7 +65,7 @@ class ReplayBuffer(object):
         np.save(os.path.join(directory, 'value.npy'), self.buffer['value'])
 
         for k in ['obs', 'move_action', 'sap_action']:
-            v = self.buffer[k].copy()
+            v = self.buffer[k].copy().astype('int32')
             v = v.reshape((-1, 24))
             v = sparse.csr_matrix(v)
             sparse.save_npz(os.path.join(directory, f'{k}.npz'), v)
@@ -67,7 +75,7 @@ class ReplayBuffer(object):
         buffer['value'] = np.load(os.path.join(directory, 'value.npy')).astype('float32')
 
         x = sparse.load_npz(os.path.join(directory, 'obs.npz')).toarray().reshape((-1, self.obs_dim, 24, 24))
-        buffer['obs'] = x.astype('int32')
+        buffer['obs'] = x.astype('int8')
 
         x = sparse.load_npz(os.path.join(directory, 'move_action.npz')).toarray().reshape((-1, 5, 24, 24))
         buffer['move_action'] = x.astype('int8')

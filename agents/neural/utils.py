@@ -37,34 +37,33 @@ def create_obs_frame(player_obs, relic_map, hist_frames, player_id, opp_id):
     for i, k in enumerate(['energy', 'tile_type']):
         m = player_obs['map_features'][k]
         # m = np.maximum(m, transpose_mat(m))  # map features a symmetric
-        map_frame[i] = m
+        map_frame[i] = np.clip(m, -128, 126)
     map_frame += 1  # add 1 to make compression easier, since most (hidden) tiles are -1
 
     # unit energy feature (position is implied)
-    unit_frame = np.zeros((1, 24, 24), 'int32')
+    unit_frame = np.zeros((1, 24, 24), 'int8')
     for idx in [player_id, opp_id]:
         for (x, y), e in zip(player_obs['units']['position'][idx],
                              player_obs['units']['energy'][idx]):
             if idx == opp_id:
                 e = -e
             if (x != -1) and (y != -1):
-                unit_frame[0, x, y] = e
+                unit_frame[0, x, y] = np.clip(e, -127, 127)
 
     # update hist
-    hist_frame = np.concatenate([unit_frame, map_frame], axis=0, dtype='int32')
     hist_frames = np.roll(hist_frames, 3, axis=0)
-    hist_frames[:3] = hist_frame
+    hist_frames[:3] = np.concatenate([unit_frame, map_frame], axis=0, dtype='int8')
 
     # vector information frames
-    v_frames = np.zeros((3, 24, 24), 'int32')
-    v_frames[0, :, :] = player_obs['match_steps']
-    v_frames[1, :, :] = player_obs['team_points'][player_id]
-    v_frames[2, :, :] = player_obs['team_points'][player_id] - player_obs['team_points'][opp_id]
+    v_frames = np.zeros((3, 24, 24), 'int8')
+    v_frames[0, :, :] = int(player_obs['match_steps'] / 5)
+    v_frames[1, :, :] = np.clip(player_obs['team_points'][player_id], 0, 127)
+    v_frames[2, :, :] = np.clip(player_obs['team_points'][player_id] - player_obs['team_points'][opp_id], -127, 127)
 
     # relic frame
     relic_frame = np.expand_dims(relic_map, 0)
 
-    frames = np.concatenate([relic_frame, v_frames, hist_frames], axis=0, dtype='int32')
+    frames = np.concatenate([relic_frame, v_frames, hist_frames], axis=0, dtype='int8')
     return frames, hist_frames
 
 
