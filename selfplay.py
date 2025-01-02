@@ -1,6 +1,7 @@
 import scipy
 import numpy as np
 from luxai_s3.wrappers import LuxAIS3GymEnv, RecordEpisode
+from agents import Agent
 from utils import *
 
 
@@ -18,6 +19,7 @@ def player_values(trajectory, player_id, opp_id):
     e = np.maximum(np.pad(e[1:] - e[:-1], (1, 0)), 0)
 
     v = p + (d / 5) + (1e-3 * e)
+    v = np.clip(v, -1, 1)
 
     return v
 
@@ -33,24 +35,8 @@ def finish_trajectory(trajectory):
     return trajectory
 
 
-def create_action_maps(actions, player_obs, team_id):
-    move_policy_mask = np.zeros((5, 24, 24), 'int8')
-    sap_policy_mask = np.zeros((2, 24, 24), 'int8')
-
-    unit_mask = np.array(player_obs["units_mask"][team_id])  # shape (max_units, )
-    unit_positions = np.array(player_obs["units"]["position"][team_id])  # shape (max_units, 2)
-
-    for action, unmask, pos in zip(actions, unit_mask, unit_positions):
-        move, dx, dy = action
-        x, y = pos
-        move_policy_mask[move, x, y] = 1
-
-        if (dx == 0) and (dy == 0):
-            sap_policy_mask[0, x]
-
-
-def run_selfplay(player_0, player_1, seed=0, replay_save_dir="",
-                 display_episode=False):
+def run_selfplay(player_0: Agent, player_1: Agent, seed: int = 0, replay_save_dir: str = "",
+                 display_episode: bool = False):
 
     env = LuxAIS3GymEnv(numpy_output=True)
     if display_episode:
@@ -60,8 +46,8 @@ def run_selfplay(player_0, player_1, seed=0, replay_save_dir="",
     obs, info = env.reset(seed=seed)
 
     env_cfg = info["params"]  # only contains observable game parameters
-    player_0.env_cfg = env_cfg
-    player_1.env_cfg = env_cfg
+    player_0.set_env_config(env_cfg)
+    player_1.set_env_config(env_cfg)
 
     traj = {agent.player: [] for agent in [player_0, player_1]}
 
@@ -78,6 +64,7 @@ def run_selfplay(player_0, player_1, seed=0, replay_save_dir="",
         for i, agent in enumerate([player_0, player_1]):
             s = State(0,
                       obs['player_0']["team_points"][i],
+                      obs[agent.player]['units']['energy'][i].sum(),
                       reward[agent.player].item(),
                       agent.obs,
                       agent.move_policy_mask,

@@ -16,6 +16,9 @@ class Agent(metaclass=abc.ABCMeta):
         self.move_policy_mask = None
         self.sap_policy_mask = None
 
+    def set_env_config(self, env_config):
+        self.env_cfg = env_config
+
     @abc.abstractmethod
     def act(self, step: int, obs, remainingOverageTime: int = 60):
         pass
