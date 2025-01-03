@@ -21,4 +21,4 @@ class Agent(metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def act(self, step: int, obs, remainingOverageTime: int = 60):
-        pass
+        """Movement and Sap actions of the units"""

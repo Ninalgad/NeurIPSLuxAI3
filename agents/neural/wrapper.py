@@ -14,8 +14,7 @@ class ObservationalAgentWrapper(ObservationalAgent):
         self.base_agent.set_env_config(env_config)
         self.env_cfg = env_config
 
-    def act(self, step: int, obs, remainingOverageTime: int = 60):
-        self.update_internal_state(obs)
+    def create_policy(self, step, obs, remainingOverageTime):
 
         move_policy = np.zeros((5, 24, 24), 'float32') + 1e-4
         sap_policy = np.zeros((2, 24, 24), 'float32') + 1e-4
@@ -27,4 +26,4 @@ class ObservationalAgentWrapper(ObservationalAgent):
             move_policy[m % 5, x, y] = 10.0
             sap_policy[1, x + dx, y + dy] = 10.0
 
-        return self._act(obs, move_policy, sap_policy)
+        return move_policy, sap_policy

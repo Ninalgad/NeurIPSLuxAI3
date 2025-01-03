@@ -1,10 +1,12 @@
 from agents import Agent
 import numpy as np
+import abc
 
 from agents.neural.utils import *
+from utils import create_numpy_obs
 
 
-class ObservationalAgent(Agent):
+class ObservationalAgent(Agent, metaclass=abc.ABCMeta):
 
     def __init__(self, player: str, env_cfg) -> None:
         super(ObservationalAgent, self).__init__(player, env_cfg)
@@ -19,7 +21,7 @@ class ObservationalAgent(Agent):
 
         self.running_board_state = np.zeros((3, 24, 24), dtype='int8')
 
-    def update_internal_state(self, obs):
+    def _update_internal_state(self, obs):
         # update discovered relic positions
         for pos, unmask in zip(obs["relic_nodes"], obs["relic_nodes_mask"]):
             if unmask:
@@ -40,7 +42,12 @@ class ObservationalAgent(Agent):
             self.team_id, self.opp_team_id
         )
 
-    def _act(self, obs, move_policy, sap_policy):
+    # def _act(self, obs, move_policy, sap_policy):
+    def act(self, step: int, obs, remainingOverageTime: int = 60):
+        obs = create_numpy_obs(obs)
+        self._update_internal_state(obs)
+
+        move_policy, sap_policy = self.create_policy(step, obs, remainingOverageTime)
 
         assert move_policy.shape == (5, 24, 24), move_policy.shape
         assert sap_policy.shape == (2, 24, 24), sap_policy.shape
@@ -97,5 +104,6 @@ class ObservationalAgent(Agent):
 
         return actions_
 
-    def act(self, step: int, obs, remainingOverageTime: int = 60):
-        pass
+    @abc.abstractmethod
+    def create_policy(self, step, obs, remainingOverageTime) -> (np.array, np.array):
+        """Create the action policies"""

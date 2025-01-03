@@ -58,12 +58,16 @@ def evaluate_agents(agent_1_cls, agent_2_cls, seed=42, games_to_play=3, replay_s
 
 
 def create_numpy_obs(obs):
+    if isinstance(obs, dict):
+        return obs
+
+    obs = vars(obs)
     obs_ = {}
     for k, v in obs.items():
-        if isinstance(v, dict):
-            v = {x: np.array(y, 'int32') for (x, y) in v.items()}
+        if k in ['map_features', 'units']:
+            v = {x: np.array(y) for (x, y) in vars(v).items()}
         else:
-            v = np.array(v, 'int32')
+            v = np.array(v)
         obs_[k] = v
     return obs_
 

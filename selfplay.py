@@ -36,9 +36,9 @@ def finish_trajectory(trajectory):
 
 
 def run_selfplay(player_0: Agent, player_1: Agent, seed: int = 0, replay_save_dir: str = "",
-                 display_episode: bool = False):
+                 display_episode: bool = False, use_jax=False):
 
-    env = LuxAIS3GymEnv(numpy_output=True)
+    env = LuxAIS3GymEnv(numpy_output=not use_jax)
     if display_episode:
         env = RecordEpisode(
             env, save_on_close=True, save_on_reset=True, save_dir=replay_save_dir
@@ -62,9 +62,10 @@ def run_selfplay(player_0: Agent, player_1: Agent, seed: int = 0, replay_save_di
         obs, reward, terminated, truncated, info = env.step(actions)
 
         for i, agent in enumerate([player_0, player_1]):
+            player_obs = create_numpy_obs(obs['player_0'])
             s = State(0,
-                      obs['player_0']["team_points"][i],
-                      obs[agent.player]['units']['energy'][i].sum(),
+                      player_obs["team_points"][i],
+                      player_obs['units']['energy'][i].sum(),
                       reward[agent.player].item(),
                       agent.obs,
                       agent.move_policy_mask,
