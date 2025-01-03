@@ -14,18 +14,31 @@ class ObservationalAgent(Agent):
             'hist_size': 3 * 8,  # 3 frames are added to history each turn
         }
 
-        self.discovered_relic_map = np.zeros((24, 24), dtype='int8')
+        self.discovered_relic_map = np.zeros((1, 24, 24), dtype='int8')
         self.hist = np.zeros((self.config['hist_size'], 24, 24), dtype='int8')
+
+        self.running_board_state = np.zeros((3, 24, 24), dtype='int8')
 
     def update_internal_state(self, obs):
         # update discovered relic positions
         for pos, unmask in zip(obs["relic_nodes"], obs["relic_nodes_mask"]):
             if unmask:
                 for (x, y) in [pos, transpose(pos)]:
-                    self.discovered_relic_map[x, y] = 1
+                    self.discovered_relic_map[0, x, y] = 1
 
-        self.obs, self.hist = create_obs_frame(obs, self.discovered_relic_map, self.hist,
-                                               self.team_id, self.opp_team_id)
+        # update map state
+        for i, k in enumerate(['energy', 'tile_type']):
+            m = obs['map_features'][k]
+            m = np.clip(m, -127, 126)
+            mask = m > -1
+            self.running_board_state[i][mask] = m[mask] + 1
+        self.running_board_state[-1][mask] = 128  # records time since last seen
+        self.running_board_state[-1] = np.clip(self.running_board_state[-1] - 1, 0, 127)
+
+        self.obs, self.hist = create_obs_frame(
+            obs, self.hist, [self.discovered_relic_map, self.running_board_state],
+            self.team_id, self.opp_team_id
+        )
 
     def _act(self, obs, move_policy, sap_policy):
 
@@ -77,7 +90,12 @@ class ObservationalAgent(Agent):
 
                     self.sap_policy_mask[s, best_pos[0], best_pos[1]] = 1
 
-        return actions
+        # JAX breaks without the following:
+        actions_ = np.zeros((self.env_cfg["max_units"], 3), dtype=int)
+        for i, act in enumerate(actions):
+            actions_[i] = act
+
+        return actions_
 
     def act(self, step: int, obs, remainingOverageTime: int = 60):
         pass

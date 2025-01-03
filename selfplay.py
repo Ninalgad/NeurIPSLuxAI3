@@ -79,5 +79,6 @@ def run_selfplay(player_0: Agent, player_1: Agent, seed: int = 0, replay_save_di
     if display_episode:
         render_episode(env)
     env.close()
+    del env
 
     return finish_trajectory(traj)

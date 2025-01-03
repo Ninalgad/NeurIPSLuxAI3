@@ -57,6 +57,17 @@ def evaluate_agents(agent_1_cls, agent_2_cls, seed=42, games_to_play=3, replay_s
     env.close()  # free up resources and save final replay
 
 
+def create_numpy_obs(obs):
+    obs_ = {}
+    for k, v in obs.items():
+        if isinstance(v, dict):
+            v = {x: np.array(y, 'int32') for (x, y) in v.items()}
+        else:
+            v = np.array(v, 'int32')
+        obs_[k] = v
+    return obs_
+
+
 class State(typing.NamedTuple):
     value: float
     energy: float

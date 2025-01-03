@@ -30,7 +30,7 @@ def is_valid_pos(pos):
     return (0 <= pos[0] < 24) and (0 <= pos[1] < 24)
 
 
-def create_obs_frame(player_obs, relic_map, hist_frames, player_id, opp_id):
+def create_obs_frame(player_obs, hist_frames, additional_frames, player_id, opp_id):
 
     # map features
     map_frame = np.zeros((2, 24, 24), 'int8')
@@ -60,10 +60,7 @@ def create_obs_frame(player_obs, relic_map, hist_frames, player_id, opp_id):
     v_frames[1, :, :] = np.clip(player_obs['team_points'][player_id], 0, 127)
     v_frames[2, :, :] = np.clip(player_obs['team_points'][player_id] - player_obs['team_points'][opp_id], -127, 127)
 
-    # relic frame
-    relic_frame = np.expand_dims(relic_map, 0)
-
-    frames = np.concatenate([relic_frame, v_frames, hist_frames], axis=0, dtype='int8')
+    frames = np.concatenate(additional_frames + [v_frames, hist_frames], axis=0, dtype='int8')
     return frames, hist_frames
 
 

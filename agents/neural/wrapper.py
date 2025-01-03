@@ -24,7 +24,7 @@ class ObservationalAgentWrapper(ObservationalAgent):
         actions = self.base_agent.act(step, obs, remainingOverageTime)
 
         for (m, dx, dy), (x, y) in zip(actions, unit_positions):
-            move_policy[m, x, y] = 1.0
-            sap_policy[1, x + dx, y + dy] = 1.0
+            move_policy[m % 5, x, y] = 10.0
+            sap_policy[1, x + dx, y + dy] = 10.0
 
         return self._act(obs, move_policy, sap_policy)

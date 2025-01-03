@@ -1,5 +1,6 @@
 import numpy as np
 import os
+import gc
 from scipy import sparse
 
 from utils import *
@@ -26,7 +27,7 @@ class ReplayBuffer(object):
             'obs': [],
             'move_action': [],
             'sap_action': []
-            }
+        }
         for s in states:
             buffer_update['value'].append(s.value)
             buffer_update['obs'].append(s.obs)
@@ -62,13 +63,16 @@ class ReplayBuffer(object):
         return item
 
     def save(self, directory):
-        np.save(os.path.join(directory, 'value.npy'), self.buffer['value'])
+        np.save(os.path.join(directory, 'value.npy'), self.buffer['value'].astype('float32'))
+        gc.collect()
 
         for k in ['obs', 'move_action', 'sap_action']:
             v = self.buffer[k].copy().astype('int32')
             v = v.reshape((-1, 24))
             v = sparse.csr_matrix(v)
             sparse.save_npz(os.path.join(directory, f'{k}.npz'), v)
+            del v
+            gc.collect()
 
     def load(self, directory):
         buffer = dict()

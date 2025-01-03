@@ -1,27 +1,17 @@
-import numpy as np
-import torch
-
 from agents.neural.utils import *
-from agents.neural.model import UNetModel
 from agents.neural import ObservationalAgent
 
 
 class NeuralAgent(ObservationalAgent):
-    def __init__(self, player: str, env_cfg) -> None:
+    def __init__(self, player: str, env_cfg, model, device, config) -> None:
         super(NeuralAgent, self).__init__(player, env_cfg)
 
-        self.model = UNetModel(7)
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.model.to(self.device)
+        self.model = model
+        self.device = device
+        self.model = self.model.to(self.device)
         self.model.eval()
 
-        self.config = {
-            'epsilon': 0.1,
-            'hist_size': 3*8,  # 3 frames are added to history each turn
-        }
-
-        self.discovered_relic_map = np.zeros((24, 24), dtype='int8')
-        self.hist = np.zeros((self.config['hist_size'], 24, 24), dtype='int8')
+        self.config = config
 
     def act(self, step: int, obs, remainingOverageTime: int = 60):
         self.update_internal_state(obs)
