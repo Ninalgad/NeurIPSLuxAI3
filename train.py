@@ -70,6 +70,8 @@ class A2CLearner(Learner):
         self.optimizer.step()
         self.steps += 1
 
+        return loss_.detach().cpu().numpy().item()
+
     def export_model_weights(self, filepath):
         torch.save(self.model.state_dict(), filepath)
 

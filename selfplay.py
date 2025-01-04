@@ -45,6 +45,8 @@ def run_selfplay(player_0: Agent, player_1: Agent, seed: int = 0, replay_save_di
         )  # used for render_episode
     obs, info = env.reset(seed=seed)
 
+    obs = {k: create_numpy_obs(v) for (k, v) in obs.items()}
+
     env_cfg = info["params"]  # only contains observable game parameters
     player_0.set_env_config(env_cfg)
     player_1.set_env_config(env_cfg)
@@ -61,11 +63,12 @@ def run_selfplay(player_0: Agent, player_1: Agent, seed: int = 0, replay_save_di
 
         obs, reward, terminated, truncated, info = env.step(actions)
 
+        obs = {k: create_numpy_obs(v) for (k, v) in obs.items()}
+
         for i, agent in enumerate([player_0, player_1]):
-            player_obs = create_numpy_obs(obs['player_0'])
             s = State(0,
-                      player_obs["team_points"][i],
-                      player_obs['units']['energy'][i].sum(),
+                      obs['player_0']["team_points"][i],
+                      obs[agent.player]['units']['energy'][i].sum(),
                       reward[agent.player].item(),
                       agent.obs,
                       agent.move_policy_mask,

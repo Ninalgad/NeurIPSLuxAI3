@@ -3,7 +3,7 @@ import numpy as np
 import abc
 
 from agents.neural.utils import *
-from utils import create_numpy_obs
+from agents.neural.obs import create_obs_frame
 
 
 class ObservationalAgent(Agent, metaclass=abc.ABCMeta):
@@ -44,7 +44,6 @@ class ObservationalAgent(Agent, metaclass=abc.ABCMeta):
 
     # def _act(self, obs, move_policy, sap_policy):
     def act(self, step: int, obs, remainingOverageTime: int = 60):
-        obs = create_numpy_obs(obs)
         self._update_internal_state(obs)
 
         move_policy, sap_policy = self.create_policy(step, obs, remainingOverageTime)
