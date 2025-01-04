@@ -4,15 +4,15 @@ import numpy as np
 def create_obs_frame(player_obs, hist_frames, additional_frames, player_id, opp_id):
 
     # map features
-    map_frame = np.zeros((2, 24, 24), 'int8')
+    map_frame = np.zeros((2, 24, 24), 'int16')
     for i, k in enumerate(['energy', 'tile_type']):
         m = player_obs['map_features'][k]
         # m = np.maximum(m, transpose_mat(m))  # map features a symmetric
-        map_frame[i] = np.clip(m, -128, 126)
+        map_frame[i] = m
     map_frame += 1  # add 1 to make compression easier, since most (hidden) tiles are -1
 
     # unit energy feature (position is implied)
-    unit_frame = np.zeros((1, 24, 24), 'int8')
+    unit_frame = np.zeros((1, 24, 24), 'int16')
     for idx in [player_id, opp_id]:
         for (x, y), e in zip(player_obs['units']['position'][idx],
                              player_obs['units']['energy'][idx]):
@@ -23,15 +23,15 @@ def create_obs_frame(player_obs, hist_frames, additional_frames, player_id, opp_
 
     # update hist
     hist_frames = np.roll(hist_frames, 3, axis=0)
-    hist_frames[:3] = np.concatenate([unit_frame, map_frame], axis=0, dtype='int8')
+    hist_frames[:3] = np.concatenate([unit_frame, map_frame], axis=0, dtype='int16')
 
     # vector information frames
-    v_frames = np.zeros((3, 24, 24), 'int8')
-    v_frames[0, :, :] = int(player_obs['match_steps'] / 5)
-    v_frames[1, :, :] = np.clip(player_obs['team_points'][player_id], 0, 127)
-    v_frames[2, :, :] = np.clip(player_obs['team_points'][player_id] - player_obs['team_points'][opp_id], -127, 127)
+    v_frames = np.zeros((3, 24, 24), 'int16')
+    v_frames[0, :, :] = player_obs['match_steps']
+    v_frames[1, :, :] = player_obs['team_points'][player_id]
+    v_frames[2, :, :] = player_obs['team_points'][player_id] - player_obs['team_points'][opp_id]
 
-    frames = np.concatenate(additional_frames + [v_frames, hist_frames], axis=0, dtype='int8')
+    frames = np.concatenate(additional_frames + [v_frames, hist_frames], axis=0, dtype='int16')
     return frames, hist_frames
 
 

@@ -12,14 +12,14 @@ class ObservationalAgent(Agent, metaclass=abc.ABCMeta):
         super(ObservationalAgent, self).__init__(player, env_cfg)
 
         self.config = {
-            'epsilon': 0.1,
+            'epsilon': 0.01,
             'hist_size': 3 * 8,  # 3 frames are added to history each turn
         }
 
-        self.discovered_relic_map = np.zeros((1, 24, 24), dtype='int8')
-        self.hist = np.zeros((self.config['hist_size'], 24, 24), dtype='int8')
+        self.discovered_relic_map = np.zeros((1, 24, 24), dtype='int16')
+        self.hist = np.zeros((self.config['hist_size'], 24, 24), dtype='int16')
 
-        self.running_board_state = np.zeros((3, 24, 24), dtype='int8')
+        self.running_board_state = np.zeros((3, 24, 24), dtype='int16')
 
     def _update_internal_state(self, obs):
         # update discovered relic positions
@@ -31,18 +31,16 @@ class ObservationalAgent(Agent, metaclass=abc.ABCMeta):
         # update map state
         for i, k in enumerate(['energy', 'tile_type']):
             m = obs['map_features'][k]
-            m = np.clip(m, -127, 126)
             mask = m > -1
             self.running_board_state[i][mask] = m[mask] + 1
-        self.running_board_state[-1][mask] = 128  # records time since last seen
-        self.running_board_state[-1] = np.clip(self.running_board_state[-1] - 1, 0, 127)
+        self.running_board_state[-1][mask] = 512  # records time since last seen
+        self.running_board_state[-1] = self.running_board_state[-1] - 1
 
         self.obs, self.hist = create_obs_frame(
             obs, self.hist, [self.discovered_relic_map, self.running_board_state],
             self.team_id, self.opp_team_id
         )
 
-    # def _act(self, obs, move_policy, sap_policy):
     def act(self, step: int, obs, remainingOverageTime: int = 60):
         self._update_internal_state(obs)
 
