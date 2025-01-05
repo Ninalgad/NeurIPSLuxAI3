@@ -16,12 +16,12 @@ class NeuralAgent(ObservationalAgent):
         self.obs_scaler = obs_scaler
 
     def create_policy(self, step: int, obs, remainingOverageTime: int = 60):
-        obs_normed = self.obs_scaler.normalize(self.obs)
+        obs_normed = self.obs_scaler.normalize(np.expand_dims(self.obs, 0))
 
         # generate model policy
         with torch.no_grad():
             inp = torch.tensor(obs_normed).float()
-            inp = inp.unsqueeze(0).to(self.device)
+            inp = inp.to(self.device)
             output = self.model(inp)
         move_policy = unload(output.move_policy.squeeze(0))
         sap_policy = unload(output.sap_policy.squeeze(0))

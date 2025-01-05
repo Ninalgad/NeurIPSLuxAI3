@@ -2,6 +2,7 @@ import scipy
 import numpy as np
 from luxai_s3.wrappers import LuxAIS3GymEnv, RecordEpisode
 from agents import Agent
+import jax, gc
 from utils import *
 
 
@@ -35,8 +36,10 @@ def finish_trajectory(trajectory):
     return trajectory
 
 
-def run_selfplay(player_0: Agent, player_1: Agent, seed: int = 0, replay_save_dir: str = "",
+def run_selfplay(player_0: Agent, player_1: Agent, seed: int = None, replay_save_dir: str = "",
                  display_episode: bool = False, use_jax=False):
+    jax.clear_caches()
+    gc.collect()
 
     env = LuxAIS3GymEnv(numpy_output=not use_jax)
     if display_episode:
@@ -83,6 +86,7 @@ def run_selfplay(player_0: Agent, player_1: Agent, seed: int = 0, replay_save_di
     if display_episode:
         render_episode(env)
     env.close()
-    del env
 
-    return finish_trajectory(traj)
+    winner = "player_0" if (reward["player_0"] > reward["player_1"]) else "player_1"
+
+    return finish_trajectory(traj), winner

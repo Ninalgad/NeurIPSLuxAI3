@@ -82,6 +82,7 @@ class BaseAgent(Agent):
                         np.random.randint(0, self.env_cfg["map_height"]))
                     self.unit_explore_locations[unit_id] = rand_loc
                 # using the direction_to tool we can generate a direction that makes the unit move to the saved location
-                # note that the first index of each unit's action represents the type of action. See specs for more details
+                # note that the first index of each unit's action represents the type of action.
+                # See specs for more details
                 actions[unit_id] = [direction_to(unit_pos, self.unit_explore_locations[unit_id]), 0, 0]
         return actions

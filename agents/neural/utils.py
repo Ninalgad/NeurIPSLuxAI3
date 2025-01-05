@@ -9,6 +9,10 @@ class NetworkOutput(typing.NamedTuple):
     sap_policy: torch.tensor
 
 
+def clip_int8(x):
+    return np.clip(x, -127, 127)
+
+
 def transpose(pos):
     return 23 - pos[1], 23 - pos[0]
 
