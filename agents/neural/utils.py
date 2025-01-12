@@ -13,14 +13,6 @@ def clip_int8(x):
     return np.clip(x, -127, 127)
 
 
-def transpose(pos):
-    return 23 - pos[1], 23 - pos[0]
-
-
-def transpose_mat(a):
-    return a.copy()[::-1, ::-1].T
-
-
 def unload(x: torch.tensor):
     return x.detach().cpu().numpy()
 

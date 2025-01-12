@@ -14,16 +14,17 @@ class ObservationalAgentWrapper(ObservationalAgent):
         self.base_agent.set_env_config(env_config)
         self.env_cfg = env_config
 
-    def create_policy(self, step, obs, remainingOverageTime):
-
+    def create_policy(self, step, obs, remainingOverageTime, transposed=False) -> (np.array, np.array):
         move_policy = np.zeros((5, 24, 24), 'float32') + 1e-4
         sap_policy = np.zeros((2, 24, 24), 'float32') + 1e-4
         unit_positions = obs["units"]["position"][self.team_id]  # shape (max_units, 2)
+        units_mask = obs['units_mask'][self.team_id]
 
         actions = self.base_agent.act(step, obs, remainingOverageTime)
 
-        for (m, dx, dy), (x, y) in zip(actions, unit_positions):
-            move_policy[m % 5, x, y] = 10.0
-            sap_policy[1, x + dx, y + dy] = 10.0
+        for (m, dx, dy), (x, y), unmask in zip(actions, unit_positions, units_mask):
+            if unmask:
+                move_policy[m % 5, x, y] = 10.0
+                sap_policy[1, x + dx, y + dy] = 10.0
 
         return move_policy, sap_policy

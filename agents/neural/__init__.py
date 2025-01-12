@@ -3,7 +3,7 @@ import numpy as np
 import abc
 
 from agents.neural.utils import *
-from agents.neural.obs import create_obs_frame
+from agents.neural.obs import *
 
 
 class ObservationalAgent(Agent, metaclass=abc.ABCMeta):
@@ -13,7 +13,7 @@ class ObservationalAgent(Agent, metaclass=abc.ABCMeta):
 
         self.config = {
             'epsilon': 0.01,
-            'hist_size': 3 * 8,  # 3 frames are added to history each turn
+            'hist_size': 3 * 7,  # 3 frames are added to history each turn
         }
 
         self.discovered_relic_map = np.zeros((1, 24, 24), dtype='int8')
@@ -37,7 +37,7 @@ class ObservationalAgent(Agent, metaclass=abc.ABCMeta):
         # update discovered relic positions
         for pos, unmask in zip(obs["relic_nodes"], obs["relic_nodes_mask"]):
             if unmask:
-                for (x, y) in [pos, transpose(pos)]:
+                for (x, y) in [pos, transpose_pos(pos)]:
                     self.discovered_relic_map[0, x, y] = 1
 
         # update map state
@@ -45,8 +45,12 @@ class ObservationalAgent(Agent, metaclass=abc.ABCMeta):
             m = obs['map_features'][k]
             mask = m > -1
             self.running_board_state[i][mask] = m[mask] + 1
-        self.running_board_state[-1][mask] = 127  # records time since last seen
-        self.running_board_state[-1] = clip_int8(self.running_board_state[-1] - 1)
+            self.running_board_state[-1][mask] = 127  # records time since last seen
+            # m, mask = transpose_grid(m), transpose_grid(mask)
+            # self.running_board_state[i][mask] = m[mask] + 1
+            # self.running_board_state[-1][mask] = 127
+
+        self.running_board_state[-1] = np.clip(self.running_board_state[-1] - 1, 0, 127)
 
         # update point gains map
         point_gain = max(0, obs['team_points'][self.team_id] - self.last_team_points)
@@ -63,9 +67,14 @@ class ObservationalAgent(Agent, metaclass=abc.ABCMeta):
         self.last_team_points = obs['team_points'][self.team_id]
 
     def act(self, step: int, obs, remainingOverageTime: int = 60):
-        self._update_internal_state(obs)
+        transposed = False
+        if self.player == "player_1":
+            transposed = True
+            self._update_internal_state(transpose_obs(obs))
+        else:
+            self._update_internal_state(obs)
 
-        move_policy, sap_policy = self.create_policy(step, obs, remainingOverageTime)
+        move_policy, sap_policy = self.create_policy(step, obs, remainingOverageTime, transposed)
 
         assert move_policy.shape == (5, 24, 24), move_policy.shape
         assert sap_policy.shape == (2, 24, 24), sap_policy.shape
@@ -83,9 +92,12 @@ class ObservationalAgent(Agent, metaclass=abc.ABCMeta):
                 if np.random.uniform() < self.config['epsilon']:
                     m = np.random.choice(5)
                 else:
+                    # m = move_policy[:, unit_pos[0], unit_pos[1]]
+                    # m = np.random.choice(5, p=m/m.sum())
+
                     m = np.argmax(move_policy[:, unit_pos[0], unit_pos[1]])
                 actions[unit_id][0] = m
-                self.move_policy_mask[m, unit_pos[0], unit_pos[1]] = 1
+                self.move_policy_mask[m, unit_pos[0], unit_pos[1]] += 1
 
         # sap actions
         if np.any(obs["units_mask"][self.opp_team_id]):
@@ -116,6 +128,11 @@ class ObservationalAgent(Agent, metaclass=abc.ABCMeta):
 
                     self.sap_policy_mask[s, best_pos[0], best_pos[1]] = 1
 
+        if transposed:
+            self.move_policy_mask = transpose_policy(self.move_policy_mask)
+            self.sap_policy_mask = transpose_policy(self.sap_policy_mask)
+            # print(self.player, actions[0])
+
         # JAX breaks without the following:
         actions_ = np.zeros((self.env_cfg["max_units"], 3), dtype=int)
         for i, act in enumerate(actions):
@@ -124,5 +141,5 @@ class ObservationalAgent(Agent, metaclass=abc.ABCMeta):
         return actions_
 
     @abc.abstractmethod
-    def create_policy(self, step, obs, remainingOverageTime) -> (np.array, np.array):
+    def create_policy(self, step, obs, remainingOverageTime, transposed=False) -> (np.array, np.array):
         """Create the action policies"""

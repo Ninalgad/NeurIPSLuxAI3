@@ -12,6 +12,7 @@ def discounted_cumulative_sums(x, discount):
 
 
 def player_values(trajectory, player_id, opp_id):
+    # state value function
     e = np.array([x.energy for x in trajectory[player_id]], 'float32')
     p = np.array([x.points for x in trajectory[player_id]], 'float32')
     d = np.array([x.reward - y.reward for x, y in zip(trajectory[player_id], trajectory[opp_id])], 'float32')
@@ -26,18 +27,19 @@ def player_values(trajectory, player_id, opp_id):
 
 
 def finish_trajectory(trajectory):
-    values0 = player_values(trajectory, 'player_0', 'player_1')
-    values1 = player_values(trajectory, 'player_1', 'player_0')
-
+    values = player_values(trajectory, 'player_0', 'player_1')
     trajectory['player_0'] = [s._replace(value=v)
-                              for v, s in zip(values0, trajectory['player_0'])]
+                              for v, s in zip(values, trajectory['player_0'])]
+
+    values = player_values(trajectory, 'player_1', 'player_0')
     trajectory['player_1'] = [s._replace(value=v)
-                              for v, s in zip(values1, trajectory['player_1'])]
+                              for v, s in zip(values, trajectory['player_1'])]
+
     return trajectory
 
 
 def run_selfplay(player_0: Agent, player_1: Agent, seed: int = None, replay_save_dir: str = "",
-                 display_episode: bool = False, use_jax=False):
+                 display_episode: bool = False, use_jax=False, debug=False):
     jax.clear_caches()
     gc.collect()
 
@@ -82,6 +84,9 @@ def run_selfplay(player_0: Agent, player_1: Agent, seed: int = None, replay_save
         if dones["player_0"] or dones["player_1"]:
             game_done = True
         step += 1
+
+        if debug and (step >= 10):
+            break
 
     if display_episode:
         render_episode(env)

@@ -1,6 +1,7 @@
 from agents.neural.utils import *
 from agents.neural import ObservationalAgent
 from agents.neural.obs import Scaler
+from agents.neural.obs import *
 
 
 class NeuralAgent(ObservationalAgent):
@@ -15,7 +16,7 @@ class NeuralAgent(ObservationalAgent):
         self.config = config
         self.obs_scaler = obs_scaler
 
-    def create_policy(self, step: int, obs, remainingOverageTime: int = 60):
+    def create_policy(self, step, obs, remainingOverageTime, transposed=False) -> (np.array, np.array):
         obs_normed = self.obs_scaler.normalize(np.expand_dims(self.obs, 0))
 
         # generate model policy
@@ -25,5 +26,9 @@ class NeuralAgent(ObservationalAgent):
             output = self.model(inp)
         move_policy = unload(output.move_policy.squeeze(0))
         sap_policy = unload(output.sap_policy.squeeze(0))
+
+        if transposed:
+            move_policy = transpose_policy(move_policy)
+            sap_policy = transpose_policy(sap_policy)
 
         return move_policy, sap_policy

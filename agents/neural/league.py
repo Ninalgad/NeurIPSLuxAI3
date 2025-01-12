@@ -58,7 +58,7 @@ class League:
         ckpt = np.load(filename, allow_pickle=True)
         self.entries = []
         for (rating, entity) in ckpt:
-            self.entries.append(Entry(rating, entity))
+            self.entries.append(Entry(float(rating), entity))
 
 
 def win_probability(rating_1, rating_2):

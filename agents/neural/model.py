@@ -113,6 +113,7 @@ class UNetModel(nn.Module):
         self,
         in_channels: int,
         num_filters: int = 32,
+        dim_mul=2,
         is_deconv: bool = False,
     ):
 
@@ -121,6 +122,8 @@ class UNetModel(nn.Module):
         self.pe = torch.tensor(positional_encoding(24, 24)).float()  # (1, 1, 24, 24))
 
         self.pool = nn.MaxPool2d(2, 2)
+
+        d = dim_mul
 
         self.relu = nn.ReLU(inplace=True)
 
@@ -131,29 +134,29 @@ class UNetModel(nn.Module):
         )
 
         self.conv1 = nn.Sequential(
-           EncoderBlock(num_filters, 2*num_filters, num_filters),
-           EncoderBlock(num_filters, 2*num_filters, 2*num_filters)
+           EncoderBlock(num_filters, int(d*num_filters), num_filters),
+           EncoderBlock(num_filters, int(d*num_filters), 2*num_filters)
         )
 
         self.conv2 = nn.Sequential(
-           EncoderBlock(2*num_filters, 4*num_filters, 2*num_filters),
-           EncoderBlock(2*num_filters, 4*num_filters, 4*num_filters)
+           EncoderBlock(2*num_filters, int(2*d*num_filters), 2*num_filters),
+           EncoderBlock(2*num_filters, int(2*d*num_filters), 4*num_filters)
         )
 
         self.conv3 = nn.Sequential(
-           EncoderBlock(4*num_filters, 8*num_filters, 4*num_filters),
-           EncoderBlock(4*num_filters, 8*num_filters, 8*num_filters)
+           EncoderBlock(4*num_filters, int(4*d*num_filters), 4*num_filters),
+           EncoderBlock(4*num_filters, int(4*d*num_filters), 8*num_filters)
         )
 
         self.center = DecoderBlockV2(
-            8*num_filters, 16*num_filters, 8*num_filters, is_deconv
+            8*num_filters, int(d*num_filters*8), 8*num_filters, is_deconv
         )
 
         self.dec3 = DecoderBlockV2(
-            num_filters * 8 * 2, num_filters * 4 * 2, num_filters * 4, is_deconv
+            num_filters * 8 * 2, int(d*num_filters*4), num_filters * 4, is_deconv
         )
         self.dec2 = DecoderBlockV2(
-            num_filters * 4 * 2, num_filters * 2 * 2, num_filters, is_deconv
+            num_filters * 4 * 2, int(d*num_filters*2), num_filters, is_deconv
         )
         self.dec1 = ConvRelu(3*num_filters, num_filters)
         self.final = nn.Conv2d(num_filters, 5 + 2, kernel_size=1)
@@ -170,6 +173,79 @@ class UNetModel(nn.Module):
 
         # global max pooling
         v = F.max_pool2d(center, kernel_size=center.size()[2:])[:, :, 0, 0]
+
+        dec3 = self.dec3(torch.cat([center, conv3], 1))
+        dec2 = self.dec2(torch.cat([dec3, conv2], 1))
+        dec1 = self.dec1(torch.cat([dec2, conv1], 1))
+        logits = self.final(dec1)
+
+        m, s = F.softmax(logits[:, :5], 1), F.softmax(logits[:, -2:], 1)
+        v = F.tanh(self.value(v))
+
+        return NetworkOutput(v, m, s)
+
+
+class ConeNetModel(nn.Module):
+    def __init__(
+        self,
+        in_channels: int,
+        num_filters: int = 128,
+        dim_mul=2,
+        is_deconv: bool = False,
+    ):
+
+        super().__init__()
+
+        self.pe = torch.tensor(positional_encoding(24, 24)).float()  # (1, 1, 24, 24))
+
+        self.pool = nn.AvgPool2d(2, 2)
+
+        d = dim_mul
+
+        self.relu = nn.ReLU(inplace=True)
+
+        self.conv0 = EncoderBlock(in_channels, int(d*num_filters), num_filters)
+
+        self.conv1 = nn.Sequential(
+           EncoderBlock(num_filters, int(d*num_filters), num_filters),
+           EncoderBlock(num_filters, int(d*num_filters), num_filters),
+        )
+
+        self.conv2 = nn.Sequential(
+           EncoderBlock(num_filters, int(d*num_filters), num_filters),
+           EncoderBlock(num_filters, int(d*num_filters), num_filters)
+        )
+
+        self.conv3 = nn.Sequential(
+           EncoderBlock(num_filters, int(d*num_filters), num_filters),
+           EncoderBlock(num_filters, int(d*num_filters), num_filters)
+        )
+
+        self.center = DecoderBlockV2(
+            num_filters, int(d*num_filters), num_filters, is_deconv
+        )
+
+        self.dec3 = DecoderBlockV2(
+            num_filters * 2, int(d*num_filters), num_filters, is_deconv
+        )
+        self.dec2 = DecoderBlockV2(
+            num_filters * 2, int(d*num_filters), num_filters, is_deconv
+        )
+        self.dec1 = ConvRelu(2*num_filters, num_filters)
+        self.final = nn.Conv2d(num_filters, 5 + 2, kernel_size=1)
+
+        self.value = mlp(8*num_filters, 1, num_filters)
+
+    def forward(self, x: torch.Tensor) -> NetworkOutput:
+        conv0 = self.conv0(x) + self.pe
+        conv1 = self.conv1(conv0)
+        conv2 = self.conv2(self.pool(conv1))
+        conv3 = self.conv3(self.pool(conv2))
+
+        center = self.center(self.pool(conv3))
+
+        # global mean pooling
+        v = F.avg_pool2d(center, kernel_size=center.size()[2:])[:, :, 0, 0]
 
         dec3 = self.dec3(torch.cat([center, conv3], 1))
         dec2 = self.dec2(torch.cat([dec3, conv2], 1))

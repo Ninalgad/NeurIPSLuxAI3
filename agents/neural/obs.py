@@ -1,5 +1,5 @@
 import numpy as np
-from agents.neural.utils import clip_int8
+from agents.neural.utils import *
 
 
 def mu_law_quantize(x, input_max, output_max, mu=8):
@@ -16,8 +16,7 @@ def create_obs_frame(player_obs, hist_frames, vector_state, additional_frames, p
     map_frame = np.zeros((2, 24, 24), 'int8')
     for i, k in enumerate(['energy', 'tile_type']):
         m = player_obs['map_features'][k]
-        # m = np.maximum(m, transpose_mat(m))  # map features are symmetric
-        map_frame[i] = m
+        map_frame[i] = clip_int8(m)
     map_frame += 1  # add 1 to make compression easier, since most (hidden) tiles are -1
 
     # unit energy feature (position is implied)
@@ -28,7 +27,7 @@ def create_obs_frame(player_obs, hist_frames, vector_state, additional_frames, p
             if idx == opp_id:
                 e = -e
             if (x != -1) and (y != -1):
-                e = mu_law_quantize(e, 400, 127)
+                e = mu_law_quantize(e, 400, 127)  # [0, 400] -> [0, 127]
                 e = clip_int8(e).astype('int8')
                 unit_frame[0, x, y] = e
 
@@ -43,6 +42,67 @@ def create_obs_frame(player_obs, hist_frames, vector_state, additional_frames, p
 
     frames = np.concatenate(additional_frames + [v_frames, hist_frames], axis=0, dtype='int8')
     return frames, hist_frames
+
+
+def transpose_pos(pos):
+    if pos[0] == -1:
+        return -1, -1
+    return 23 - pos[1], 23 - pos[0]
+
+
+def transpose_unit_pos(units):
+    t0 = [transpose_pos(p) for p in units[0]]
+    t1 = [transpose_pos(p) for p in units[1]]
+    return np.array([t0, t1], units.dtype)
+
+
+def transpose_action(act):
+    # (0 = center, 1 = up, 2 = right, 3 = down, 4 = left)
+    action_transpose = {0: 0, 1: 3, 2: 4, 3: 1, 4: 2}
+    m, dx, dy = act
+    return [action_transpose[m], -dx, -dy]
+
+
+def transpose_relic_nodes(a):
+    return np.array([transpose_pos(x) for x in a], a.dtype)
+
+
+def transpose_grid(a):
+    return a.copy()[::-1, ::-1].T
+
+
+def transpose_obs(obs):
+    obs_t = {}
+    for (k, v) in obs.items():
+        if k == "units":
+            v = {'position': transpose_unit_pos(v['position']), 'energy': v['energy']}
+        elif k == "sensor_mask":
+            v = transpose_grid(v)
+        elif k == "map_features":
+            v = {name: transpose_grid(feat) for (name, feat) in v.items()}
+        elif k == "relic_nodes":
+            v = transpose_relic_nodes(v)
+        else:
+            v = v.copy()
+
+        obs_t[k] = v
+    return obs_t
+
+
+def transpose_policy(policy):
+    if policy is not None:
+        # translate positions
+        policy = np.transpose(policy.copy(), (0, 2, 1))[:, ::-1, ::-1]
+
+        if policy.shape[0] == 5:
+            # translate moves
+            move_policy = policy.copy()
+            move_policy[1] = policy[4]
+            move_policy[4] = policy[1]
+            move_policy[2] = policy[3]
+            move_policy[3] = policy[2]
+            policy = move_policy
+        return policy
 
 
 class Scaler:
